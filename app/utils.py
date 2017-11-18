@@ -3,9 +3,10 @@ from functools import wraps
 from flask import request, jsonify, make_response
 from .models import User
 
-def auth_required(f):
+
+def auth_required(func):
     """decorator for authenticating a user using token based authentication """
-    @wraps(f)
+    @wraps(func)
     def decorated_function(*args, **kwargs):
         """ Decorated function for authenticating a user"""
         response = {
@@ -22,6 +23,38 @@ def auth_required(f):
             resp = User.decode_auth_token(auth_token)
         if not auth_token or isinstance(resp, str):
             return make_response(jsonify(response)), code
-        return f(resp, auth_token, *args, **kwargs)
+        user = {'user_id': resp, 'auth_token': auth_token}
+        return func(user, *args, **kwargs)
     return decorated_function
 
+
+def validate_login_data(func):
+    """Decorator for validating login data"""
+    @wraps(func)
+    def validate_login(*args, **kwargs):
+        """Decorated function for validating login data"""
+        user_data = request.data
+        if not user_data or 'username' not in user_data \
+                or 'password' not in user_data:
+            return make_response(jsonify({'message': 'Invalid payload'})), 400
+        return func(*args, **kwargs)
+    return validate_login
+
+
+def check_bucketlist_item_data(func):
+    """Decorator for validating bucketlist/item data"""
+    @wraps(func)
+    def validate_data(*args, **kwargs):
+        """Decorated function for validating bucketlist/item data"""
+        bucketlist_data = request.data
+        if not bucketlist_data or 'description' not in bucketlist_data \
+                or 'name' not in bucketlist_data:
+            return make_response(jsonify({'message': 'Invalid payload'})), 400
+        return func(*args, **kwargs)
+    return validate_data
+
+
+def validate_fields(field1, field2, collection=None):
+    """Function validates fields"""
+    if not collection or field1 not in collection or field2 not in collection:
+        return make_response(jsonify({'message': 'Invalid payload'})), 400
